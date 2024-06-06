@@ -18,7 +18,6 @@ local jwk_str, _ = key:tostring("PublicKey", "JWK")
 local jwk = json.decode(jwk_str)
 
 function jwt_resign:access(conf)
-
   local payload = {
 
   }
@@ -27,8 +26,8 @@ function jwt_resign:access(conf)
   local bearer = headers[conf.header_name]
 
   local words = {}
-  for w in bearer:gmatch("%S+")do
-      table.insert(words, w)
+  for w in bearer:gmatch("%S+") do
+    table.insert(words, w)
   end
 
   local jwt_obj = jwt:load_jwt(words[2])
@@ -36,7 +35,7 @@ function jwt_resign:access(conf)
   payload = jwt_obj.payload
 
   if conf.override_claims then
-    for k,v in pairs(conf.override_claims) do payload[k] = v end
+    for k, v in pairs(conf.override_claims) do payload[k] = v end
   end
 
   local jwt_token = jwt:sign(
@@ -49,8 +48,6 @@ function jwt_resign:access(conf)
   kong.service.request.set_headers({
     [conf.resigned_header_name] = "Bearer " .. jwt_token
   })
-
-
 end
 
 return jwt_resign
