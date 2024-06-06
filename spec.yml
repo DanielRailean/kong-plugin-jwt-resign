@@ -1,0 +1,19 @@
+_format_version: '3.0'
+_transform: false
+services:
+- name: my-service
+  url: https://example.com
+  plugins:
+  - name: jwt-resign
+    config:
+      header_name: authorization
+      override_claims:
+        iss: new_iss
+  - name: request-termination
+    config:
+      echo: true
+      status_code: 200
+  routes:
+  - name: my-route
+    paths:
+    - /testroute
