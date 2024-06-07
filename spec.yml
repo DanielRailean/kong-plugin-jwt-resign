@@ -9,6 +9,7 @@ services:
       header_name: authorization
       override_claims:
         iss: new_iss
+      header_key_id: my-id
   - name: request-termination
     config:
       echo: true

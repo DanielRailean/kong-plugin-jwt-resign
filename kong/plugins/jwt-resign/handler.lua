@@ -41,7 +41,7 @@ function jwt_resign:access(conf)
   local jwt_token = jwt:sign(
     secret,
     {
-      header = { typ = "JWT", alg = "RS256", kid = jwk.kid },
+      header = { typ = "JWT", alg = "RS256", kid = conf.header_key_id or jwk.kid },
       payload = payload
     }
   )

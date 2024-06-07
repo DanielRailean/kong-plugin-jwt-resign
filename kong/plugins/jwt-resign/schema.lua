@@ -28,10 +28,9 @@ local schema = {
             }
           },
           {
-            private_key_pem_env_name = {
+            header_key_id = {
               type = "string",
-              required = true,
-              default = "KONG_PLUGIN_PRIORITY_JWT_RESIGN_PEM_PRIVATE"
+              required = false,
             }
           }
         }
