@@ -16,11 +16,15 @@ local secret = os.getenv("KONG_PLUGIN_PRIORITY_JWT_RESIGN_PEM_PRIVATE")
 local key = pkey.new(secret)
 local jwk_str, _ = key:tostring("PublicKey", "JWK")
 local jwk = json.decode(jwk_str)
+jwk["use"] = "sig"
 
 function jwt_resign:access(conf)
-  local payload = {
+  jwk["alg"] = conf.resign_algorithm
+  if conf.return_discovery_keys then
+    kong.response.exit(200, {keys = {jwk}})
+  end
 
-  }
+  local payload = {}
 
   local headers = kong.request.get_headers()
   local bearer = headers[conf.header_name]
@@ -41,7 +45,7 @@ function jwt_resign:access(conf)
   local jwt_token = jwt:sign(
     secret,
     {
-      header = { typ = "JWT", alg = "RS256", kid = conf.header_key_id or jwk.kid },
+      header = { typ = "JWT", alg = conf.resign_algorithm, kid = conf.header_key_id or jwk.kid },
       payload = payload
     }
   )

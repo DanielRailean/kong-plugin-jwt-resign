@@ -4,12 +4,6 @@ services:
 - name: my-service
   url: https://example.com
   plugins:
-  - name: jwt-resign
-    config:
-      header_name: authorization
-      override_claims:
-        iss: new_iss
-      header_key_id: my-id
   - name: request-termination
     config:
       echo: true
@@ -18,3 +12,18 @@ services:
   - name: my-route
     paths:
     - /testroute
+    plugins:
+      - name: jwt-resign
+        config:
+          header_name: authorization
+          resign_algorithm: RS512
+          override_claims:
+            iss: new_iss
+  - name: discovery
+    paths:
+    - /discovery/keys
+    plugins:
+      - name: jwt-resign
+        config:
+          return_discovery_keys: true
+          resign_algorithm: RS512
