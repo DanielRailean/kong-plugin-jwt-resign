@@ -3,7 +3,7 @@
 ## build the image
 
 ```sh
-docker build . -t kong-plugin
+docker build . -t kong-plugin-jwt-resign
 ```
 
 ## run the image
@@ -52,8 +52,8 @@ CFgUQ/MGl8Y7vTspHa/irJE=
     -p 8443:8443 \
     -p 8001:8001 \
     -p 8444:8444 \
-    -v /host/kong-plugin-jwt-oidc-validate/kong/plugins/jwt-resign:/usr/local/share/lua/5.1/kong/plugins/jwt-resign \
-    kong-plugin
+    -v /host/kong-plugin-jwt-resign/kong/plugins/jwt-resign:/usr/local/share/lua/5.1/kong/plugins/jwt-resign \
+    kong-plugin-jwt-resign
 ```
 
 ## post the config
