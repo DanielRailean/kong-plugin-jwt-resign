@@ -23,6 +23,10 @@ description = {
 }
 
 dependencies = {
+  "resty",
+  "resty.openssl",
+  "cjson",
+  "resty.jwt"
 }
 
 

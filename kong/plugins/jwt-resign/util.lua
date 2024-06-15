@@ -1,7 +1,6 @@
 local pkey = require("resty.openssl.pkey")
 local json = require("cjson")
 
-
 local util = {}
 local plugin_name = "jwt-resign"
 util.plugin_name = plugin_name

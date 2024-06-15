@@ -8,19 +8,18 @@ return {
       POST = function(self, db, helpers)
         local base_name = util.get_key_name(self.params.keyset_name)
         local current_name = base_name .. "-current"
-        local entity, err = keys:select_by_name(current_name)
+        local entity, select_err = keys:select_by_name(current_name)
 
-
-        if err ~= nil then
-          return kong.response.exit(500, { err = err })
+        if select_err then
+          return kong.response.exit(500, { err = select_err })
         end
 
-        if entity == nil and err == nil then
+        if entity == nil and select_err == nil then
           local kong_key = util.generate_kong_key(current_name)
-          local _, err = keys:insert(kong_key)
+          local _, insert_err = keys:insert(kong_key)
 
-          if err ~= nil then
-            return kong.response.exit(500, { err = err })
+          if insert_err then
+            return kong.response.exit(500, { err = insert_err })
           end
 
           return kong.response.exit(200, { message = "key created", name = current_name })
@@ -41,7 +40,7 @@ return {
         local prev_key, err_prev = keys:select_by_name(previous_name)
 
 
-        if err_curr ~= nil then
+        if err_curr then
           return kong.response.exit(500, { err = err_curr })
         end
 
@@ -53,21 +52,21 @@ return {
         rotated_key.id = curr_key.id
         local res, err = keys:upsert({ id = curr_key.id }, rotated_key)
 
-        if err ~= nil then
+        if err then
           return kong.response.exit(500, { err = err, message = "failed updating current key" })
         end
         curr_key.name = previous_name
 
-        if prev_key ~= nil then
-          local res, err = keys:upsert({ id = prev_key.id }, curr_key)
-          if err ~= nil then
-            return kong.response.exit(500, { err = err, message = "failed updating previous key" })
+        if prev_key then
+          local _, upsert_prev_err = keys:upsert({ id = prev_key.id }, curr_key)
+          if upsert_prev_err then
+            return kong.response.exit(500, { err = upsert_prev_err, message = "failed updating previous key" })
           end
         else
           curr_key.id = nil
-          local res, err = keys:insert(curr_key)
-          if err ~= nil then
-            return kong.response.exit(500, { err = err, message = "failed inserting previous key" })
+          local _, insert_curr_err = keys:insert(curr_key)
+          if insert_curr_err then
+            return kong.response.exit(500, { err = insert_curr_err, message = "failed inserting previous key" })
           end
         end
 
