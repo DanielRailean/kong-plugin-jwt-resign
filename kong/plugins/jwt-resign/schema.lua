@@ -52,6 +52,12 @@ local schema = {
               },
               default = "RS256"
             }
+          },
+          {
+            resign_keyset_name = {
+              type = "string",
+              required = false
+            }
           }
         }
       },
