@@ -10,62 +10,89 @@ local jwt_resign = {
   -- same default priority as jwt-signer (enterprise)
   -- https://docs.konghq.com/gateway/3.4.x/plugin-development/custom-logic/#plugins-execution-order
   PRIORITY = tonumber(os.getenv("KONG_PLUGIN_PRIORITY_JWT_RESIGN")) or 1020,
-  DBLESS = (os.getenv("KONG_PLUGIN_JWT_RESIGN_DBLESS")) or false,
   VERSION = "1.0.0",
 }
 
-local env_public_jwk
-local env_private_pem
+RESIGN_ALG = "RS256"
+ENV_PRIVATE_PEM = os.getenv("KONG_PLUGIN_PRIORITY_JWT_RESIGN_PEM_PRIVATE")
 
-if jwt_resign.DBLESS then
-  env_private_pem = os.getenv("KONG_PLUGIN_PRIORITY_JWT_RESIGN_PEM_PRIVATE")
-  -- https://github.com/fffonion/lua-resty-openssl?tab=readme-ov-file#pkeynew
-  local key = pkey.new(env_private_pem)
-  -- https://github.com/fffonion/lua-resty-openssl?tab=readme-ov-file#pkeytostring
-  local jwk_str, _ = key:tostring("PublicKey", "JWK")
-  env_public_jwk = json.decode(jwk_str)
-  env_public_jwk["use"] = "sig"
+-- https://github.com/fffonion/lua-resty-openssl?tab=readme-ov-file#pkeynew
+local key = pkey.new(ENV_PRIVATE_PEM)
+-- https://github.com/fffonion/lua-resty-openssl?tab=readme-ov-file#pkeytostring
+local jwk_str, _ = key:tostring("PublicKey", "JWK")
+ENV_PUBLIC_JWK = json.decode(jwk_str)
+
+local function get_runtime_data(keyset_name)
+  local private_jwk
+  -- if jwt_resign.DBLESS then
+  --   return kong.response.exit(500, { message = "cannot use keyset names in dbless mode"})
+  -- end
+  local name = util.get_key_name(keyset_name) .. "-current"
+  local exists, err = kong.db.keys:select_by_name(name)
+  private_jwk = exists
+
+  -- if err thenP
+  --   return kong.response.exit(500, { err = err, message = "failed reading current key", name = name })
+  -- end
+
+  if not err and not exists then
+    local new_key = util.generate_kong_key(name)
+    local create, insert_err = kong.db.keys:insert(new_key)
+
+    -- if insert_err then
+    --   return kong.response.exit(500, { err = insert_err, message = "failed creating current key", name = name })
+    -- end
+
+    private_jwk = create
+  end
+
+  local key, err = pkey.new(private_jwk.jwk, { format = "JWK" })
+  local private_pem, err = key:tostring("private", "PEM")
+  local public_jwk_str, err = key:tostring("public", "JWK")
+  local public_jwk = json.decode(public_jwk_str)
+
+  -- using the kid from the database
+  public_jwk.kid = private_jwk.kid
+
+  return {
+    private_pem = private_pem,
+    public_jwk = public_jwk
+  }
 end
 
-
 function jwt_resign:access(conf)
-  if jwt_resign.DBLESS then
-    env_public_jwk["alg"] = conf.resign_algorithm
+  if not conf.resign_key_name and not ENV_PRIVATE_PEM then
+    return kong.response.exit(400, { message = "Bad Config", plugin = util.plugin_name })
   end
+
+  local data = {
+    private_pem = ENV_PRIVATE_PEM,
+    public_jwk = ENV_PUBLIC_JWK
+  }
+
+  if conf.resign_key_name then
+    local cache_key = util.runtime_data_cache_key(conf.resign_key_name)
+    local cache_data, err = kong.cache:get(cache_key, nil, get_runtime_data, conf.resign_key_name)
+    if cache_data then
+      data = cache_data
+    end
+  end
+
+  if not data.private_pem or not data.public_jwk then
+    kong.response.exit(500, { message = "Internal Error", plugin = util.plugin_name })
+  end
+
+  data.public_jwk["use"] = "sig"
+  data.public_jwk["alg"] = RESIGN_ALG
 
   if conf.return_discovery_keys then
-    kong.response.exit(200, { keys = { env_public_jwk } })
-  end
-
-  if conf.resign_keyset_name then
-    if jwt_resign.DBLESS then
-      return kong.response.exit(500, { message = "cannot use keyset names in dbless mode"})
-    end
-    local name = util.get_key_name(conf.resign_keyset_name) .. "-current"
-    local exists, err = kong.db.keys:select_by_name(name)
-
-    if err then
-      return kong.response.exit(500, { err = err, message = "failed reading current key", name = name })
-    end
-
-    if not err and not exists then
-      local new_key = util.generate_kong_key(name)
-      local create, insert_err = kong.db.keys:insert(new_key)
-
-      if insert_err then
-        return kong.response.exit(500, { err = insert_err, message = "failed creating current key", name = name })
-      end
-
-      return kong.response.exit(200, {create = create})
-    end
-
-    kong.response.exit(200, { exists = exists, err = err })
+    return kong.response.exit(200, { keys = { data.public_jwk } })
   end
 
   local payload = {}
 
   local headers = kong.request.get_headers()
-  local bearer = headers[conf.header_name]
+  local bearer = headers[conf.header_name_token]
 
   local words = {}
   for w in bearer:gmatch("%S+") do
@@ -81,14 +108,14 @@ function jwt_resign:access(conf)
   end
 
   local jwt_token = jwt:sign(
-    env_private_pem,
+    data.private_pem,
     {
-      header = { typ = "JWT", alg = conf.resign_algorithm, kid = conf.header_key_id or env_public_jwk.kid },
+      header = { typ = "JWT", alg = RESIGN_ALG, kid = conf.override_kid or data.public_jwk.kid },
       payload = payload
     }
   )
   kong.service.request.set_headers({
-    [conf.resigned_header_name] = "Bearer " .. jwt_token
+    [conf.header_name_resigned] = "Bearer " .. jwt_token
   })
 end
 

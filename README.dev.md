@@ -6,10 +6,9 @@
 docker build . -t kong-plugin-jwt-resign
 ```
 
-## run the image
+## run in dbless mode
 
-```sh
-  docker run -d --name kong \
+docker run -d --network="host" --name kong \
     -e "KONG_DATABASE=off" \
     -e "KONG_PROXY_ACCESS_LOG=/dev/stdout" \
     -e "KONG_ADMIN_ACCESS_LOG=/dev/stdout" \
@@ -52,7 +51,43 @@ CFgUQ/MGl8Y7vTspHa/irJE=
     -p 8443:8443 \
     -p 8001:8001 \
     -p 8444:8444 \
-    -v /host/kong-plugin-jwt-resign/kong/plugins/jwt-resign:/usr/local/share/lua/5.1/kong/plugins/jwt-resign \
+    -v /host_path/kong-plugin-jwt-resign/kong/plugins/jwt-resign:/usr/local/share/lua/5.1/kong/plugins/jwt-resign \
+    kong-plugin-jwt-resign
+
+
+
+## run with postgres
+
+### start postgres
+
+```sh
+docker run --name  pg-kong -p 5432:5432 -e POSTGRES_PASSWORD=pass -d postgres:16.3
+```
+
+### run the image
+
+```sh
+  docker run -d --network="host" --name kong \
+    -e "KONG_DATABASE=postgres" \
+    -e "KONG_PG_HOST=localhost" \
+    -e "KONG_PG_PORT=5432" \
+    -e "KONG_PG_USER=postgres" \
+    -e "KONG_PG_PASSWORD=pass" \
+    -e "KONG_MIGRATE=yes" \
+    -e "KONG_PROXY_ACCESS_LOG=/dev/stdout" \
+    -e "KONG_ADMIN_ACCESS_LOG=/dev/stdout" \
+    -e "KONG_PROXY_ERROR_LOG=/dev/stderr" \
+    -e "KONG_ADMIN_ERROR_LOG=/dev/stderr" \
+    -e "KONG_ADMIN_LISTEN=0.0.0.0:8001, 0.0.0.0:8444 ssl" \
+    -e "KONG_PLUGINS=bundled,jwt-resign" \
+    -e "KONG_ERROR_DEFAULT_TYPE=application/json" \
+    -e "KONG_PLUGIN_PRIORITY_JWT_RESIGN=1060" \
+    -e "KONG_NGINX_HTTP_LUA_SHARED_DICT=prometheus_metrics 5m;lua_shared_dict jwks 5m;lua_shared_dict discovery 5m" \
+    -p 8000:8000 \
+    -p 8443:8443 \
+    -p 8001:8001 \
+    -p 8444:8444 \
+    -v /host_path/kong-plugin-jwt-resign/kong/plugins/jwt-resign:/usr/local/share/lua/5.1/kong/plugins/jwt-resign \
     kong-plugin-jwt-resign
 ```
 

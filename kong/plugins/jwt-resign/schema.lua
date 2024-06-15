@@ -8,6 +8,26 @@ local schema = {
         type = "record",
         fields = {
           {
+            header_name_token = {
+              type = "string",
+              required = true,
+              default = "authorization"
+            }
+          },
+          {
+            header_name_resigned = {
+              type = "string",
+              required = true,
+              default = "x-gateway-authorization"
+            }
+          },
+          {
+            override_kid = {
+              type = "string",
+              required = false,
+            }
+          },
+          {
             override_claims = {
               required = false,
               type = "map",
@@ -16,23 +36,10 @@ local schema = {
             }
           },
           {
-            header_name = {
-              type = "string",
-              required = true,
-              default = "authorization"
-            }
-          },
-          {
-            resigned_header_name = {
-              type = "string",
-              required = true,
-              default = "x-gateway-authorization"
-            }
-          },
-          {
-            header_key_id = {
+            resign_key_name = {
               type = "string",
               required = false,
+              not_match = "%s"
             }
           },
           {
@@ -42,23 +49,6 @@ local schema = {
               default = false
             }
           },
-          {
-            resign_algorithm = {
-              type = "string",
-              required = true,
-              one_of = {
-                "RS256",
-                "RS512",
-              },
-              default = "RS256"
-            }
-          },
-          {
-            resign_keyset_name = {
-              type = "string",
-              required = false
-            }
-          }
         }
       },
     },
